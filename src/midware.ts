@@ -89,7 +89,7 @@ export class Midware<T> {
 	 * Execution series can be terminated by returning `Midware.TERMINATE` symbol
 	 * from any middleware function.
 	 */
-	async execute(context: T, timeout: number = 0) {
+	async execute(context: T, timeout: number = 0): Promise<T> {
 		// process all in series (for the potential timeout race, need to wrap as a single promise)
 		let _exec = async () => {
 			for (const midware of this.#midwares) {
