@@ -41,6 +41,7 @@ export class Midware<T> {
 
 	#midwares: MidwareUseFn<T>[] = [];
 
+	/** Pass in array of middleware to initialize immediately. */
 	constructor(midwares: MidwareUseFn<T>[] = []) {
 		midwares.forEach((fn) => this.use(fn));
 	}
@@ -51,6 +52,7 @@ export class Midware<T> {
 		}
 	}
 
+	/** Wraps middleware in timeout aware promise if positive `timeout` provided.  */
 	#maybeWithTimeout(midware: MidwareUseFn<T>, timeout: number = 0) {
 		if (timeout > 0) {
 			midware = withTimeout<T>(

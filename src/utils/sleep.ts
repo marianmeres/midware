@@ -1,4 +1,6 @@
 /**
+ * Delays execution for `timeout` milliseconds.
+ *
  * Deno.test is quite strict and reports every non-cleared timeout... so we have to
  * be able to pass in some object ref if needed (eg when sleep is not resolved via Promise.race)
  * to be able to do the clearing eventually.
@@ -15,13 +17,13 @@
  * ```
  */
 export function sleep(
-	ms: number,
-	__timeout__: { id: number } = { id: -1 }
+	timeout: number,
+	__timeout_ref__: { id: number } = { id: -1 }
 ): Promise<void> {
 	return new Promise((resolve) => {
-		__timeout__.id = setTimeout(() => {
-			clearTimeout(__timeout__.id);
+		__timeout_ref__.id = setTimeout(() => {
+			clearTimeout(__timeout_ref__.id);
 			resolve(undefined);
-		}, ms);
+		}, timeout);
 	});
 }
