@@ -2,12 +2,14 @@
 
 Minimalistic middleware framework.
 
-## Installation (deno)
+## Installation
+
+deno
 ```bash
 deno add jsr:@marianmeres/midware
 ```
 
-## Installation (nodejs)
+nodejs
 ```bash
 npx jsr add @marianmeres/midware
 ```
@@ -18,12 +20,15 @@ import { Midware } from '@marianmeres/midware';
 
 const app = new Midware<T>();
 
-// register middleware...
-app.use((context: T) => {
+// Register middlewares via the `use` method. Pass in a timeout value to watch 
+// the middleware's execution time.
+app.use(async (context: T) => {
     // do the work here
-});
+}, timeout?);
 
-// now, execute all registered middlewares in series
-// (break execution by returning `Midware.TERMINATE` symbol from any middleware)
-const result = await app.execute({ some: 'context' });
+// Now, execute all registered middlewares in series.
+// If needed, break the execution by returning the `Midware.TERMINATE` 
+// symbol from any of them. Pass in a timeout value to watch 
+// the overall execution time.
+const result = await app.execute({ some: 'context' }, timeout?);
 ```
