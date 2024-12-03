@@ -14,7 +14,10 @@
  * clearTimeout(ref.id)
  * ```
  */
-export function sleep(ms: number, __timeout__: { id: number } = { id: -1 }) {
+export function sleep(
+	ms: number,
+	__timeout__: { id: number } = { id: -1 }
+): Promise<void> {
 	return new Promise((resolve) => {
 		__timeout__.id = setTimeout(() => {
 			clearTimeout(__timeout__.id);
