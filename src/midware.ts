@@ -20,7 +20,7 @@ export type MidwareUseFn<T> = (context: T) => any;
  * });
  *
  * app.use((context: T) => {
- *  context.counter++;
+ * 	context.counter++;
  * 	console.log('two');
  * 	return Midware.TERMINATE;
  * });
