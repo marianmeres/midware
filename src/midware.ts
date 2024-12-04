@@ -22,7 +22,7 @@ export type MidwareUseFn<T> = (context: T) => any;
  * app.use((context: T) => {
  * 	context.counter++;
  * 	console.log('two');
- * 	return Midware.TERMINATE;
+ * 	return true; // by returning anything other than `undefined` we are breaking the chain
  * });
  *
  * // this middleware is never reached
@@ -37,8 +37,6 @@ export type MidwareUseFn<T> = (context: T) => any;
  * ```
  */
 export class Midware<T> {
-	static readonly TERMINATE = Symbol("Terminate execution signal");
-
 	#midwares: MidwareUseFn<T>[] = [];
 
 	/** Pass in array of middleware to initialize immediately. */
@@ -84,21 +82,25 @@ export class Midware<T> {
 
 	/**
 	 * Main execution flow. Will process all middlewares in series. Each middleware
-	 * function receives `context` as the only parameter.
+	 * function receives `context` as the only parameter to which it can write and read from.
 	 *
 	 * Positive non-zero parameter `timeout` will be used as a total execution duration check.
 	 *
-	 * Execution series can be terminated by returning `Midware.TERMINATE` symbol
-	 * from any middleware function.
+	 * Execution can be terminated by returning anything other than `undefined`
+	 * from any middleware function. Otherwise, middlewares are not expected to return any defined values.
 	 */
-	async execute(context: T, timeout: number = 0): Promise<T> {
+	async execute(context: T, timeout: number = 0): Promise<unknown> {
 		// process all in series (for the potential timeout race, need to wrap as a single promise)
-		let _exec = async () => {
+		let _exec = async (context: T) => {
+			let result;
 			for (const midware of this.#midwares) {
-				if ((await midware(context)) === Midware.TERMINATE) {
-					break;
+				result = await midware(context);
+				// anything other than undefined is considered as a termination signal
+				if (result !== undefined) {
+					return result;
 				}
 			}
+			return result;
 		};
 
 		// maybe total execution timeout check...
@@ -107,8 +109,6 @@ export class Midware<T> {
 		}
 
 		// finally, do the work...
-		await _exec();
-
-		return context;
+		return await _exec(context);
 	}
 }

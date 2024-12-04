@@ -11,12 +11,15 @@ Deno.test("framework flow works", async () => {
 			ctx.x.push(1);
 			ctx.counter++;
 		},
-		async (ctx: any) => await Promise.resolve(ctx.x.push(2)),
+		async (ctx: any) => {
+			await Promise.resolve(ctx.x.push(2));
+		},
 		(ctx: any) => {
 			// still can write context even if terminating early
 			ctx.baz = "bat";
 			ctx.counter++;
-			return Midware.TERMINATE;
+			// by returning anything other than `undefined` we are breaking the chain
+			return true;
 		},
 		// must NOT be reached
 		(ctx: any) => {
@@ -24,8 +27,10 @@ Deno.test("framework flow works", async () => {
 			ctx.counter++;
 		},
 	]);
-	const res = await app.execute({ foo: "bar", x: [], counter: 0 });
-	assertEquals({ foo: "bar", x: [1, 2], baz: "bat", counter: 2 }, res);
+	const context: any = { foo: "bar", x: [], counter: 0 };
+	await app.execute(context);
+	// console.log(context);
+	assertEquals({ foo: "bar", x: [1, 2], baz: "bat", counter: 2 }, context);
 });
 
 Deno.test("middleware can throw", async () => {

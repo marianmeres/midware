@@ -31,16 +31,15 @@ const app = new Midware<T>();
 app.use(async (context: T) => {
     // do the work here...
     context.foo = 'bar';
-    // To break the execution chain return the `Midware.TERMINATE` symbol.
-    // If so, no other middleware will execute after this one.
-    // return Midware.TERMINATE;
+    // To break the execution chain return anything other than `undefined`.
+    // return true
 }, timeout = 0);
 
 // Now, execute all registered middlewares in series.
 // Pass in a non-zero timeout value to watch (and possibly reject)
 // the overall execution duration.
-const result = await app.execute({ foo: null }, timeout = 0);
+const context = { foo: null };
+await app.execute(context, timeout = 0);
 
-// `result` is the context
-assert(result.foo === 'bar');
+assert(context.foo === 'bar');
 ```
