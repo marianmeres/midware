@@ -2,7 +2,7 @@
 
 Minimalistic middleware framework.
 
-[![JSR](https://jsr.io/badges/@<scope>/<package>)](https://jsr.io/@<scope>/<package>)
+[![JSR](https://jsr.io/badges/@marianmeres/midware)](https://jsr.io/@marianmeres/midware)
 
 ## Installation
 
