@@ -2,6 +2,8 @@
 
 Minimalistic middleware framework.
 
+[![JSR](https://jsr.io/badges/@<scope>/<package>)](https://jsr.io/@<scope>/<package>)
+
 ## Installation
 
 deno
