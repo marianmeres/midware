@@ -24,7 +24,8 @@ import { Midware } from '@marianmeres/midware';
 
 ## Basic example
 ```ts
-const app = new Midware();
+// generic type represents the middleware fn arguments
+const app = new Midware<[{foo: any}]>();
 
 // Register middlewares via the `use` method. Pass in a non-zero timeout value to watch 
 // (and possibly reject) the middleware's execution duration.
@@ -36,12 +37,14 @@ app.use(async (context) => {
 }, timeout = 0);
 
 // Now, execute all registered middlewares in series.
-// Pass in a non-zero timeout value to watch (and possibly reject)
-// the overall execution duration.
 const context = { foo: null };
-
-// call each middlewares with the args provided here as the first argument
-await app.execute([context], timeout = 0);
+await app.execute(
+    // call each middleware with these arguments
+    [context], 
+    // Pass in a non-zero timeout value to watch (and possibly reject)
+    // the overall execution duration.
+    timeout = 0
+);
 
 assert(context.foo === 'bar');
 ```

@@ -12,7 +12,7 @@ export type MidwareUseFn<T extends unknown[]> = (...args: T) => any;
  * ```ts
  * import { Midware } from "@marianmeres/midware";
  *
- * // generic T represents the args array passed to each middleware
+ * // generic T represents represents the middleware fn arguments
  * const app = new Midware<T>();
  *
  * app.use((context) => {
