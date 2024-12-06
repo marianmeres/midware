@@ -24,11 +24,11 @@ import { Midware } from '@marianmeres/midware';
 
 ## Basic example
 ```ts
-const app = new Midware<T>();
+const app = new Midware();
 
 // Register middlewares via the `use` method. Pass in a non-zero timeout value to watch 
 // (and possibly reject) the middleware's execution duration.
-app.use(async (context: T) => {
+app.use(async (context) => {
     // do the work here...
     context.foo = 'bar';
     // To break the execution chain return anything other than `undefined`.
@@ -39,7 +39,9 @@ app.use(async (context: T) => {
 // Pass in a non-zero timeout value to watch (and possibly reject)
 // the overall execution duration.
 const context = { foo: null };
-await app.execute(context, timeout = 0);
+
+// call each middlewares with the args provided here as the first argument
+await app.execute([context], timeout = 0);
 
 assert(context.foo === 'bar');
 ```
