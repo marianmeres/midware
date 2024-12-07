@@ -24,7 +24,7 @@ import { Midware } from '@marianmeres/midware';
 
 ## Basic example
 ```ts
-// generic type represents the middleware fn arguments
+// generic type provided represents the middleware fn arguments
 const app = new Midware<[{foo: any}]>();
 
 // Register middlewares via the `use` method. Pass in a non-zero timeout value to watch 

@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 
+/** Error used in the Promise.race rejection */
 export class TimeoutError extends Error {}
 
 /**
