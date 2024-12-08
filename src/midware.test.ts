@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 
-import { assertEquals, assertRejects } from "@std/assert";
-import { Midware } from "./midware.ts";
+import { assertEquals, assertRejects, assertThrows } from "@std/assert";
+import { Midware, MidwareUseFn } from "./midware.ts";
 import { sleep } from "./utils/sleep.ts";
 import { TimeoutError } from "./utils/with-timeout.ts";
 
@@ -72,4 +72,63 @@ Deno.test("execute all rejects on timeout excess", async () => {
 	app.use(() => {});
 	await assertRejects(() => app.execute({}, 20), TimeoutError);
 	clearTimeout(_sleepTimer.id);
+});
+
+Deno.test("duplicates check", () => {
+	const fn1 = () => null;
+	const fn2 = () => null;
+
+	// no check
+	let app = new Midware<any>([fn1, fn2], { duplicatesCheckEnabled: false });
+	app.use(fn1);
+	app.use(fn2);
+
+	// now check
+	app = new Midware<any>([fn1, fn2], { duplicatesCheckEnabled: true });
+	assertThrows(() => app.use(fn1));
+	assertThrows(() => app.use(fn2));
+	assertThrows(() => app.unshift(fn2));
+
+	// now check again, but `withTimeout` makes it not detectable
+	() => app.use(fn1, 1);
+	() => app.use(fn2, 1);
+	() => app.unshift(fn2, 1);
+
+	// check at constructor
+	assertThrows(
+		() => new Midware<any>([fn1, fn1], { duplicatesCheckEnabled: true })
+	);
+});
+
+Deno.test("pre execute sort order", async () => {
+	type Context = { log: number[] };
+
+	const fn1: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(1);
+	};
+	const fn2: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(2);
+	};
+	const fn3: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(3);
+	};
+	const fn4: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(4);
+	};
+
+	let context = { log: [] };
+	let app = new Midware<[Context]>([fn1, fn2, fn3, fn4]);
+	await app.execute([context]);
+	assertEquals(context.log, [1, 2, 3, 4]);
+
+	// now repeat, but modify sort order marks
+	fn3.__midwarePreExecuteSortOrder = 1;
+	fn4.__midwarePreExecuteSortOrder = 0;
+	context = { log: [] };
+	app = new Midware<[Context]>([fn1, fn2, fn3, fn4], {
+		preExecuteSortEnabled: true,
+	});
+	await app.execute([context]);
+
+	assertEquals(context.log, [4, 3, 1, 2]);
 });

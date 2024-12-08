@@ -3,17 +3,38 @@
 import { withTimeout } from "./utils/with-timeout.ts";
 
 /** Actual middleware function type */
-export type MidwareUseFn<T extends unknown[]> = (...args: T) => any;
+export type MidwareUseFn<T extends unknown[]> = {
+	(...args: T): any;
+	/** If pre execute sorting is enabled, will sort each middleware based on this number. */
+	__midwarePreExecuteSortOrder?: number;
+	/** If truthy, this fn will never be found as duplicate. */
+	__midwareDuplicable?: boolean;
+};
+
+/** Midware constructor options */
+export interface MidwareOptions {
+	/** If enabled, will sort the internal #midwares stack before executing */
+	preExecuteSortEnabled?: boolean;
+	/** If enabled will throw if already existing middleware is being added again. */
+	duplicatesCheckEnabled?: boolean;
+}
 
 /**
- * Minimalistic middleware framework manager.
+ * Middleware framework manager.
  */
 export class Midware<T extends unknown[]> {
 	/** Internal middleware collection */
 	#midwares: MidwareUseFn<T>[] = [];
 
+	/** Inital options default values. */
+	options: MidwareOptions = {
+		preExecuteSortEnabled: false,
+		duplicatesCheckEnabled: false,
+	};
+
 	/** Pass in array of middlewares to initialize immediately. */
-	constructor(midwares: MidwareUseFn<T>[] = []) {
+	constructor(midwares: MidwareUseFn<T>[] = [], options?: MidwareOptions) {
+		this.options = { ...this.options, ...(options || {}) };
 		midwares.forEach((fn) => this.use(fn));
 	}
 
@@ -37,6 +58,42 @@ export class Midware<T extends unknown[]> {
 	}
 
 	/**
+	 * If option `dupesCheckEnabled` enabled will assert that middleware does not exist.
+	 *
+	 * Important: if the middleware was just wrapped in `withTimeout`
+	 * the duplicity will not be detectable as it has just been created as a new function.
+	 */
+	#maybeDupesAssert(midware: MidwareUseFn<T>): MidwareUseFn<T> {
+		// maybe return early if nothing to do here
+		if (midware.__midwareDuplicable || !this.options.duplicatesCheckEnabled) {
+			return midware;
+		}
+		//
+		if (this.#midwares.includes(midware)) {
+			throw new Error(
+				[
+					"Midware already exist (if this is OK, mark the fn as `__midwareDuplicable`",
+					"or disable the `duplicatesCheckEnabled` option)",
+				].join(" ")
+			);
+		}
+		//
+		return midware;
+	}
+
+	/** If truthy option `preExecuteSortEnabled` will sort the internal stack. */
+	#maybePreExecuteSort() {
+		if (this.options.preExecuteSortEnabled) {
+			this.#midwares.sort((a, b) => {
+				return (
+					(a.__midwarePreExecuteSortOrder ?? Infinity) -
+					(b.__midwarePreExecuteSortOrder ?? Infinity)
+				);
+			});
+		}
+	}
+
+	/**
 	 * Registers middleware function by pushing it into the internal stack.
 	 *
 	 * Positive non-zero parameter `timeout` will be used as this middleware execution
@@ -44,7 +101,9 @@ export class Midware<T extends unknown[]> {
 	 */
 	use(midware: MidwareUseFn<T>, timeout: number = 0) {
 		this.#assertValidMidware(midware);
-		this.#midwares.push(this.#maybeWithTimeout(midware, timeout));
+		this.#midwares.push(
+			this.#maybeDupesAssert(this.#maybeWithTimeout(midware, timeout))
+		);
 	}
 
 	/**
@@ -55,7 +114,9 @@ export class Midware<T extends unknown[]> {
 	 */
 	unshift(midware: MidwareUseFn<T>, timeout: number = 0) {
 		this.#assertValidMidware(midware);
-		this.#midwares.unshift(this.#maybeWithTimeout(midware, timeout));
+		this.#midwares.unshift(
+			this.#maybeDupesAssert(this.#maybeWithTimeout(midware, timeout))
+		);
 	}
 
 	/**
@@ -72,6 +133,9 @@ export class Midware<T extends unknown[]> {
 		if (!Array.isArray(args)) {
 			args = [args] as any;
 		}
+
+		this.#maybePreExecuteSort();
+
 		// process all in series (for the potential timeout race, need to wrap as a single promise)
 		let _exec = async () => {
 			let result;

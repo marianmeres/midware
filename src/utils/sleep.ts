@@ -14,7 +14,6 @@
  * // ...
  * clearTimeout(ref.id)
  * ```
- *
  */
 export function sleep(
 	timeout: number,
@@ -25,7 +24,7 @@ export function sleep(
 	 *
 	 * If calling directly `await sleep(x)` in a top level flow, this dance is not needed.
 	 */
-	__timeout_ref__: { id: number } = { id: -1 }
+	__timeout_ref__: { id: number } = { id: -1 },
 ): Promise<void> {
 	return new Promise((resolve) => {
 		__timeout_ref__.id = setTimeout(() => {
