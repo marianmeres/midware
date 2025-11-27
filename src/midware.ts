@@ -26,6 +26,12 @@ export class Midware<T extends unknown[]> {
 	/** Internal middleware collection */
 	#midwares: MidwareUseFn<T>[] = [];
 
+	/** Cached sorted middleware array (only used when preExecuteSortEnabled) */
+	#sortedMidwares: MidwareUseFn<T>[] | null = null;
+
+	/** Flag indicating if the middleware stack has changed since last sort */
+	#isDirty: boolean = true;
+
 	/** Inital options default values. */
 	options: MidwareOptions = {
 		preExecuteSortEnabled: false,
@@ -81,16 +87,36 @@ export class Midware<T extends unknown[]> {
 		return midware;
 	}
 
-	/** If truthy option `preExecuteSortEnabled` will sort the internal stack. */
-	#maybePreExecuteSort() {
-		if (this.options.preExecuteSortEnabled) {
-			this.#midwares.sort((a, b) => {
-				return (
-					(a.__midwarePreExecuteSortOrder ?? Infinity) -
-					(b.__midwarePreExecuteSortOrder ?? Infinity)
-				);
-			});
+	/** Invalidates the sorted cache */
+	#markDirty() {
+		this.#isDirty = true;
+		this.#sortedMidwares = null;
+	}
+
+	/**
+	 * Returns sorted middlewares if sorting is enabled, otherwise returns original array.
+	 * Uses cached sorted array if available and stack hasn't changed.
+	 */
+	#getExecutableMiddlewares(): MidwareUseFn<T>[] {
+		if (!this.options.preExecuteSortEnabled) {
+			return this.#midwares;
 		}
+
+		// Return cached sorted array if available
+		if (!this.#isDirty && this.#sortedMidwares !== null) {
+			return this.#sortedMidwares;
+		}
+
+		// Sort and cache
+		this.#sortedMidwares = [...this.#midwares].sort((a, b) => {
+			return (
+				(a.__midwarePreExecuteSortOrder ?? Infinity) -
+				(b.__midwarePreExecuteSortOrder ?? Infinity)
+			);
+		});
+
+		this.#isDirty = false;
+		return this.#sortedMidwares;
 	}
 
 	/**
@@ -104,6 +130,7 @@ export class Midware<T extends unknown[]> {
 		this.#midwares.push(
 			this.#maybeDupesAssert(this.#maybeWithTimeout(midware, timeout))
 		);
+		this.#markDirty();
 	}
 
 	/**
@@ -117,6 +144,30 @@ export class Midware<T extends unknown[]> {
 		this.#midwares.unshift(
 			this.#maybeDupesAssert(this.#maybeWithTimeout(midware, timeout))
 		);
+		this.#markDirty();
+	}
+
+	/**
+	 * Removes a specific middleware from the stack.
+	 *
+	 * @returns true if the middleware was found and removed, false otherwise
+	 */
+	remove(midware: MidwareUseFn<T>): boolean {
+		const index = this.#midwares.indexOf(midware);
+		if (index !== -1) {
+			this.#midwares.splice(index, 1);
+			this.#markDirty();
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Clears all middlewares from the stack.
+	 */
+	clear(): void {
+		this.#midwares = [];
+		this.#markDirty();
 	}
 
 	/**
@@ -134,12 +185,13 @@ export class Midware<T extends unknown[]> {
 			args = [args] as any;
 		}
 
-		this.#maybePreExecuteSort();
+		// Get the executable middlewares (sorted if needed, cached if possible)
+		const midwaresToExecute = this.#getExecutableMiddlewares();
 
 		// process all in series (for the potential timeout race, need to wrap as a single promise)
 		let _exec = async () => {
 			let result;
-			for (const midware of this.#midwares) {
+			for (const midware of midwaresToExecute) {
 				result = await midware(...args);
 				// anything other than `undefined` is considered as a termination signal
 				if (result !== undefined) {

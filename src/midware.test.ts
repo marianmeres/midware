@@ -132,3 +132,118 @@ Deno.test("pre execute sort order", async () => {
 
 	assertEquals(context.log, [4, 3, 1, 2]);
 });
+
+Deno.test("remove middleware", async () => {
+	type Context = { log: number[] };
+	const fn1: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(1);
+	};
+	const fn2: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(2);
+	};
+	const fn3: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(3);
+	};
+
+	const app = new Midware<[Context]>([fn1, fn2, fn3]);
+
+	// Remove middleware from the middle
+	const removed = app.remove(fn2);
+	assertEquals(removed, true);
+
+	const context = { log: [] };
+	await app.execute([context]);
+	assertEquals(context.log, [1, 3]);
+
+	// Try to remove non-existent middleware
+	const notRemoved = app.remove(fn2);
+	assertEquals(notRemoved, false);
+});
+
+Deno.test("clear all middlewares", async () => {
+	type Context = { log: number[] };
+	const fn1: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(1);
+	};
+	const fn2: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(2);
+	};
+
+	const app = new Midware<[Context]>([fn1, fn2]);
+
+	// Clear all middlewares
+	app.clear();
+
+	const context = { log: [] };
+	await app.execute([context]);
+	assertEquals(context.log, []);
+});
+
+Deno.test("remove invalidates sort cache", async () => {
+	type Context = { log: number[] };
+
+	const fn1: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(1);
+	};
+	const fn2: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(2);
+	};
+	const fn3: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(3);
+	};
+
+	fn1.__midwarePreExecuteSortOrder = 3;
+	fn2.__midwarePreExecuteSortOrder = 2;
+	fn3.__midwarePreExecuteSortOrder = 1;
+
+	const app = new Midware<[Context]>([fn1, fn2, fn3], {
+		preExecuteSortEnabled: true,
+	});
+
+	let context = { log: [] };
+	await app.execute([context]);
+	assertEquals(context.log, [3, 2, 1]);
+
+	// Remove fn2 and verify cache is invalidated
+	app.remove(fn2);
+
+	context = { log: [] };
+	await app.execute([context]);
+	assertEquals(context.log, [3, 1]);
+});
+
+Deno.test("clear invalidates sort cache", async () => {
+	type Context = { log: number[] };
+
+	const fn1: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(1);
+	};
+	const fn2: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(2);
+	};
+
+	fn1.__midwarePreExecuteSortOrder = 2;
+	fn2.__midwarePreExecuteSortOrder = 1;
+
+	const app = new Midware<[Context]>([fn1, fn2], {
+		preExecuteSortEnabled: true,
+	});
+
+	let context = { log: [] };
+	await app.execute([context]);
+	assertEquals(context.log, [2, 1]);
+
+	// Clear and add new middlewares
+	app.clear();
+
+	const fn3: MidwareUseFn<[Context]> = (ctx) => {
+		ctx.log.push(3);
+	};
+	fn3.__midwarePreExecuteSortOrder = 1;
+
+	app.use(fn3);
+
+	context = { log: [] };
+	await app.execute([context]);
+	assertEquals(context.log, [3]);
+});
