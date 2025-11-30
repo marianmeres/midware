@@ -3,6 +3,7 @@
 A minimalistic, type-safe middleware framework for executing functions in series.
 
 [![JSR](https://jsr.io/badges/@marianmeres/midware)](https://jsr.io/@marianmeres/midware)
+[![NPM](https://img.shields.io/npm/v/@marianmeres/midware)](https://www.npmjs.com/package/@marianmeres/midware)
 
 ## Features
 
