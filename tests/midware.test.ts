@@ -1,9 +1,7 @@
-// deno-lint-ignore-file no-explicit-any
-
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
-import { Midware, MidwareUseFn } from "./midware.ts";
-import { sleep } from "./utils/sleep.ts";
-import { TimeoutError } from "./utils/with-timeout.ts";
+import { Midware, type MidwareUseFn } from "../src/midware.ts";
+import { sleep } from "../src/utils/sleep.ts";
+import { TimeoutError } from "../src/utils/with-timeout.ts";
 
 Deno.test("framework flow works", async () => {
 	type Context = { foo: string; x: number[]; counter: number; baz?: string };

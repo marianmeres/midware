@@ -1,29 +1,34 @@
 /**
- * Delays execution for `timeout` milliseconds.
+ * Delays execution for the specified number of milliseconds.
+ *
+ * A simple promise-based sleep utility for async/await flows.
+ *
+ * @param timeout - The delay duration in milliseconds
+ * @param __timeout_ref__ - Optional object to store the timer ID for external cancellation.
+ *   Useful in Deno tests which require all timers to be cleared, or when the sleep
+ *   might be cancelled before resolution (e.g., in a Promise.race scenario).
+ *   If calling directly with `await sleep(x)`, this parameter is not needed.
+ * @returns A promise that resolves after the specified delay
  *
  * @example
  * ```ts
+ * // Simple usage
  * await sleep(100);
+ * console.log("100ms later");
  * ```
  *
  * @example
  * ```ts
- * // Usage with timer reference
- * let ref = { id: -1 };
- * some(() => sleep(100, ref))
- * // ...
- * clearTimeout(ref.id)
+ * // Usage with timer reference for cancellation
+ * const ref = { id: -1 };
+ * const sleepPromise = sleep(5000, ref);
+ *
+ * // Cancel the sleep early
+ * clearTimeout(ref.id);
  * ```
  */
 export function sleep(
 	timeout: number,
-	/**
-	 * Deno.test is quite strict and reports every non-cleared timeout... so we have to
-	 * be able to pass in some object ref if needed (eg when sleep is not resolved via Promise.race)
-	 * to be able to do the clearing eventually.
-	 *
-	 * If calling directly `await sleep(x)` in a top level flow, this dance is not needed.
-	 */
 	__timeout_ref__: { id: number } = { id: -1 },
 ): Promise<void> {
 	return new Promise((resolve) => {
