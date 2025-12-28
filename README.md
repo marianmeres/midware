@@ -4,6 +4,7 @@ A minimalistic, type-safe middleware framework for executing functions in series
 
 [![JSR](https://jsr.io/badges/@marianmeres/midware)](https://jsr.io/@marianmeres/midware)
 [![NPM](https://img.shields.io/npm/v/@marianmeres/midware)](https://www.npmjs.com/package/@marianmeres/midware)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
@@ -56,21 +57,6 @@ console.log(ctx); // { user: "john", authorized: true }
 
 The main middleware manager class. `T` is a tuple type representing the arguments passed to all middlewares.
 
-#### Constructor
-
-```ts
-new Midware<T>(midwares?: MidwareUseFn<T>[], options?: MidwareOptions)
-```
-
-#### Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `preExecuteSortEnabled` | `boolean` | `false` | Sort middlewares by `__midwarePreExecuteSortOrder` before execution |
-| `duplicatesCheckEnabled` | `boolean` | `false` | Throw error if the same middleware is added twice |
-
-#### Methods
-
 | Method | Description |
 |--------|-------------|
 | `use(midware, timeout?)` | Add middleware to the end of the stack |
@@ -79,26 +65,20 @@ new Midware<T>(midwares?: MidwareUseFn<T>[], options?: MidwareOptions)
 | `clear()` | Remove all middlewares |
 | `execute(args, timeout?)` | Execute all middlewares in series |
 
-### `MidwareUseFn<T>`
+### Options
 
-The middleware function type. Can have optional properties:
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `preExecuteSortEnabled` | `boolean` | `false` | Sort middlewares by `__midwarePreExecuteSortOrder` before execution |
+| `duplicatesCheckEnabled` | `boolean` | `false` | Throw error if the same middleware is added twice |
 
-- `__midwarePreExecuteSortOrder?: number` - Priority for sorting (lower = first)
-- `__midwareDuplicable?: boolean` - Allow this middleware to be added multiple times
+### Utilities
 
-### Utility Functions
+- `withTimeout(fn, timeout, errMessage?)` - Wraps a function with timeout protection
+- `sleep(timeout, ref?)` - Promise-based delay utility
+- `TimeoutError` - Custom error class for timeouts
 
-#### `withTimeout<T>(fn, timeout, errMessage?)`
-
-Wraps a function with timeout protection. Throws `TimeoutError` if execution exceeds the timeout.
-
-#### `sleep(timeout, ref?)`
-
-Promise-based delay utility.
-
-#### `TimeoutError`
-
-Custom error class thrown when timeouts are exceeded.
+For complete API documentation with detailed parameters, return types, and examples, see [API.md](API.md).
 
 ## Examples
 

@@ -1,4 +1,17 @@
 /**
+ * @module
+ * Promise-based sleep utility for async/await flows.
+ *
+ * @example
+ * ```ts
+ * import { sleep } from "@marianmeres/midware";
+ *
+ * await sleep(100);
+ * console.log("100ms later");
+ * ```
+ */
+
+/**
  * Delays execution for the specified number of milliseconds.
  *
  * A simple promise-based sleep utility for async/await flows.

@@ -1,6 +1,26 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
+ * @module
+ * Timeout utilities for wrapping functions with execution time limits.
+ *
+ * Provides {@linkcode withTimeout} for wrapping any function with timeout protection,
+ * and {@linkcode TimeoutError} for identifying timeout-related failures.
+ *
+ * @example
+ * ```ts
+ * import { withTimeout, TimeoutError } from "@marianmeres/midware";
+ *
+ * const safeFetch = withTimeout(fetch, 5000, "Request timed out");
+ * try {
+ *   await safeFetch("https://api.example.com");
+ * } catch (e) {
+ *   if (e instanceof TimeoutError) console.log("Timed out!");
+ * }
+ * ```
+ */
+
+/**
  * Custom error thrown when a timeout occurs during function execution.
  *
  * @example
