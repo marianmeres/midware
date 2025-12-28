@@ -65,7 +65,6 @@ deno task npm:publish # Build and publish to npm
 - `README.md` - User guide with examples
 - `API.md` - Complete API reference
 - `AGENTS.md` - Machine-readable context for AI agents
-- `llm.txt` - LLM context document
 
 ## When Modifying
 
