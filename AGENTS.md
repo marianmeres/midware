@@ -4,7 +4,7 @@
 
 ```yaml
 name: "@marianmeres/midware"
-version: "1.3.0"
+version: "1.3.3"
 type: "middleware-framework"
 language: "TypeScript"
 runtime: ["Deno", "Node.js"]
