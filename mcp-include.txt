@@ -1,1 +1,3 @@
-Serial middleware execution framework with type-safe generics, per-middleware and total execution timeouts, priority-based sorting, duplicate detection, and early termination via return values.
+Serial middleware execution framework with type-safe generics, per-middleware and total 
+execution timeouts, priority-based sorting, duplicate detection, and early termination via 
+return values.

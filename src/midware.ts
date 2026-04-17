@@ -42,6 +42,15 @@ export type MidwareUseFn<T extends unknown[]> = {
 	 * a duplicate error (when `duplicatesCheckEnabled` is true).
 	 */
 	__midwareDuplicable?: boolean;
+	/**
+	 * Internal: when a middleware is wrapped with a per-middleware timeout,
+	 * the wrapper carries a back-reference to the original so that
+	 * {@linkcode Midware.remove}, duplicate detection, and priority sorting
+	 * all continue to see the original function.
+	 *
+	 * You generally should not set this manually.
+	 */
+	__midwareOriginal?: MidwareUseFn<T>;
 };
 
 /**
@@ -59,18 +68,44 @@ export interface MidwareOptions {
 	/**
 	 * When enabled, middlewares are sorted by `__midwarePreExecuteSortOrder` before execution.
 	 * Lower numbers execute first. Middlewares without a sort order are placed at the end.
-	 * The sorted order is cached and only recalculated when the middleware stack changes.
+	 * The sort is re-computed on every `execute()` call, so mutating sort-order values
+	 * between runs is supported.
 	 * @default false
 	 */
 	preExecuteSortEnabled?: boolean;
 	/**
 	 * When enabled, throws an error if the same middleware function is added twice.
 	 * Individual middlewares can opt-out by setting `__midwareDuplicable = true`.
-	 * Note: Middlewares wrapped with `withTimeout` create new function references,
-	 * so duplicate detection won't work for those.
+	 * Since v1.4, duplicate detection works correctly even for middlewares
+	 * registered with a per-middleware timeout.
 	 * @default false
 	 */
 	duplicatesCheckEnabled?: boolean;
+}
+
+/**
+ * Options accepted by {@linkcode Midware.execute}.
+ *
+ * @example
+ * ```ts
+ * const controller = new AbortController();
+ * await app.execute([ctx], { timeout: 5000, signal: controller.signal });
+ * ```
+ */
+export interface MidwareExecuteOptions {
+	/**
+	 * Total execution timeout in milliseconds. If positive, the entire chain
+	 * must complete within this duration or a {@linkcode TimeoutError} is thrown.
+	 * Non-positive values mean "no timeout".
+	 */
+	timeout?: number;
+	/**
+	 * Optional AbortSignal. If the signal is aborted before or between middlewares,
+	 * execution stops and the promise rejects with the signal's reason. In-flight
+	 * middlewares are not forcefully cancelled; middlewares that want cooperative
+	 * cancellation should read the signal from the shared context passed via `args`.
+	 */
+	signal?: AbortSignal;
 }
 
 /**
@@ -81,6 +116,7 @@ export interface MidwareOptions {
  * by returning a non-undefined value.
  *
  * @template T - Tuple type representing the arguments passed to all middlewares
+ * @template R - Terminating-middleware return value type (defaults to `unknown`)
  *
  * @example
  * ```ts
@@ -115,16 +151,18 @@ export interface MidwareOptions {
  *
  * const result = await midware.execute([context], 5000); // 5s total timeout
  * ```
+ *
+ * @example
+ * ```ts
+ * // AbortSignal support
+ * const controller = new AbortController();
+ * setTimeout(() => controller.abort(), 1000);
+ * await midware.execute([ctx], { signal: controller.signal });
+ * ```
  */
-export class Midware<T extends unknown[]> {
+export class Midware<T extends unknown[], R = unknown> {
 	/** Internal middleware collection */
 	#midwares: MidwareUseFn<T>[] = [];
-
-	/** Cached sorted middleware array (only used when preExecuteSortEnabled) */
-	#sortedMidwares: MidwareUseFn<T>[] | null = null;
-
-	/** Flag indicating if the middleware stack has changed since last sort */
-	#isDirty: boolean = true;
 
 	/**
 	 * The current configuration options for this Midware instance.
@@ -158,6 +196,22 @@ export class Midware<T extends unknown[]> {
 		midwares.forEach((fn) => this.use(fn));
 	}
 
+	/**
+	 * The number of middlewares currently registered.
+	 */
+	get size(): number {
+		return this.#midwares.length;
+	}
+
+	/**
+	 * Read-only snapshot of the registered middlewares (unwrapped originals),
+	 * in insertion order. Useful for inspection/debugging; mutating the
+	 * returned array has no effect on the Midware stack.
+	 */
+	get middlewares(): readonly MidwareUseFn<T>[] {
+		return this.#midwares.map((m) => m.__midwareOriginal ?? m);
+	}
+
 	/** Internal DRY helper */
 	#assertValidMidware(midware: any) {
 		if (typeof midware !== "function") {
@@ -165,72 +219,66 @@ export class Midware<T extends unknown[]> {
 		}
 	}
 
-	/** Wraps middleware in a timeout aware promise if positive `timeout` provided.  */
-	#maybeWithTimeout(midware: MidwareUseFn<T>, timeout: number = 0) {
-		if (timeout > 0) {
-			midware = withTimeout<T>(
-				midware,
-				timeout,
-				"Middleware execution timed out"
-			);
-		}
-		return midware;
+	/** Returns the original (pre-timeout-wrap) function for a stored middleware. */
+	#original(m: MidwareUseFn<T>): MidwareUseFn<T> {
+		return m.__midwareOriginal ?? m;
 	}
 
 	/**
-	 * If option `dupesCheckEnabled` enabled will assert that middleware does not exist.
-	 *
-	 * Important: if the middleware was just wrapped in `withTimeout`
-	 * the duplicity will not be detectable as it has just been created as a new function.
+	 * Wraps a middleware in a timeout-aware promise if a positive `timeout` is provided.
+	 * The wrapper carries a `__midwareOriginal` back-reference so that `remove`,
+	 * duplicate detection, and priority sorting continue to see the original.
+	 */
+	#maybeWithTimeout(midware: MidwareUseFn<T>, timeout: number = 0): MidwareUseFn<T> {
+		if (!(timeout > 0)) return midware;
+
+		const wrapped = withTimeout<unknown, T>(
+			midware,
+			timeout,
+			"Middleware execution timed out",
+		) as unknown as MidwareUseFn<T>;
+
+		wrapped.__midwareOriginal = midware;
+		return wrapped;
+	}
+
+	/**
+	 * If option `duplicatesCheckEnabled` is enabled, asserts that this middleware
+	 * (identified by its original reference) does not already exist in the stack.
 	 */
 	#maybeDupesAssert(midware: MidwareUseFn<T>): MidwareUseFn<T> {
-		// maybe return early if nothing to do here
-		if (midware.__midwareDuplicable || !this.options.duplicatesCheckEnabled) {
+		const original = this.#original(midware);
+		if (original.__midwareDuplicable || !this.options.duplicatesCheckEnabled) {
 			return midware;
 		}
-		//
-		if (this.#midwares.includes(midware)) {
+
+		const exists = this.#midwares.some((m) => this.#original(m) === original);
+		if (exists) {
 			throw new Error(
 				[
 					"Midware already exist (if this is OK, mark the fn as `__midwareDuplicable`",
 					"or disable the `duplicatesCheckEnabled` option)",
-				].join(" ")
+				].join(" "),
 			);
 		}
-		//
+
 		return midware;
 	}
 
-	/** Invalidates the sorted cache */
-	#markDirty() {
-		this.#isDirty = true;
-		this.#sortedMidwares = null;
-	}
-
 	/**
-	 * Returns sorted middlewares if sorting is enabled, otherwise returns original array.
-	 * Uses cached sorted array if available and stack hasn't changed.
+	 * Returns sorted middlewares if sorting is enabled, otherwise the original
+	 * insertion-ordered array. Sort keys are read from the original (unwrapped)
+	 * function, so mutating `__midwarePreExecuteSortOrder` between `execute()`
+	 * calls is honored.
 	 */
 	#getExecutableMiddlewares(): MidwareUseFn<T>[] {
-		if (!this.options.preExecuteSortEnabled) {
-			return this.#midwares;
-		}
+		if (!this.options.preExecuteSortEnabled) return this.#midwares;
 
-		// Return cached sorted array if available
-		if (!this.#isDirty && this.#sortedMidwares !== null) {
-			return this.#sortedMidwares;
-		}
-
-		// Sort and cache
-		this.#sortedMidwares = [...this.#midwares].sort((a, b) => {
-			return (
-				(a.__midwarePreExecuteSortOrder ?? Infinity) -
-				(b.__midwarePreExecuteSortOrder ?? Infinity)
-			);
+		return [...this.#midwares].sort((a, b) => {
+			const aKey = this.#original(a).__midwarePreExecuteSortOrder ?? Infinity;
+			const bKey = this.#original(b).__midwarePreExecuteSortOrder ?? Infinity;
+			return aKey - bKey;
 		});
-
-		this.#isDirty = false;
-		return this.#sortedMidwares;
 	}
 
 	/**
@@ -255,10 +303,9 @@ export class Midware<T extends unknown[]> {
 	 */
 	use(midware: MidwareUseFn<T>, timeout: number = 0): void {
 		this.#assertValidMidware(midware);
-		this.#midwares.push(
-			this.#maybeDupesAssert(this.#maybeWithTimeout(midware, timeout))
-		);
-		this.#markDirty();
+		const wrapped = this.#maybeWithTimeout(midware, timeout);
+		this.#maybeDupesAssert(wrapped);
+		this.#midwares.push(wrapped);
 	}
 
 	/**
@@ -268,51 +315,40 @@ export class Midware<T extends unknown[]> {
 	 *
 	 * @param midware - The middleware function to register
 	 * @param timeout - Optional timeout in milliseconds for this middleware's execution.
-	 *   If positive, the middleware will be wrapped with timeout protection and will
-	 *   throw a `TimeoutError` if execution exceeds this duration.
 	 * @throws {TypeError} If midware is not a function
 	 * @throws {Error} If duplicatesCheckEnabled is true and this middleware already exists
-	 *
-	 * @example
-	 * ```ts
-	 * // Add a middleware that should run before all others
-	 * midware.unshift((ctx) => {
-	 *   ctx.startTime = Date.now();
-	 * });
-	 * ```
 	 */
 	unshift(midware: MidwareUseFn<T>, timeout: number = 0): void {
 		this.#assertValidMidware(midware);
-		this.#midwares.unshift(
-			this.#maybeDupesAssert(this.#maybeWithTimeout(midware, timeout))
-		);
-		this.#markDirty();
+		const wrapped = this.#maybeWithTimeout(midware, timeout);
+		this.#maybeDupesAssert(wrapped);
+		this.#midwares.unshift(wrapped);
 	}
 
 	/**
 	 * Removes a specific middleware from the stack.
 	 *
-	 * Note: If the middleware was registered with a timeout, it was wrapped in a new
-	 * function, so you won't be able to remove it using the original function reference.
+	 * The lookup is done against the original (unwrapped) reference, so this
+	 * works correctly even when the middleware was registered with a
+	 * per-middleware timeout.
 	 *
-	 * @param midware - The middleware function to remove (must be the exact reference)
+	 * @param midware - The middleware function to remove (the original reference)
 	 * @returns `true` if the middleware was found and removed, `false` otherwise
 	 *
 	 * @example
 	 * ```ts
 	 * const myMiddleware = (ctx) => { ... };
-	 * midware.use(myMiddleware);
+	 * midware.use(myMiddleware, 1000); // registered with timeout
 	 *
-	 * // Later...
 	 * midware.remove(myMiddleware); // returns true
 	 * midware.remove(myMiddleware); // returns false (already removed)
 	 * ```
 	 */
 	remove(midware: MidwareUseFn<T>): boolean {
-		const index = this.#midwares.indexOf(midware);
+		const target = this.#original(midware);
+		const index = this.#midwares.findIndex((m) => this.#original(m) === target);
 		if (index !== -1) {
 			this.#midwares.splice(index, 1);
-			this.#markDirty();
 			return true;
 		}
 		return false;
@@ -320,18 +356,9 @@ export class Midware<T extends unknown[]> {
 
 	/**
 	 * Removes all middlewares from the stack.
-	 *
-	 * @example
-	 * ```ts
-	 * midware.use(fn1);
-	 * midware.use(fn2);
-	 * midware.clear();
-	 * // Stack is now empty
-	 * ```
 	 */
 	clear(): void {
 		this.#midwares = [];
-		this.#markDirty();
 	}
 
 	/**
@@ -344,58 +371,65 @@ export class Midware<T extends unknown[]> {
 	 * If `preExecuteSortEnabled` is true, middlewares are sorted by their
 	 * `__midwarePreExecuteSortOrder` property before execution.
 	 *
-	 * @param args - The arguments to pass to each middleware function
-	 * @param timeout - Optional total execution timeout in milliseconds.
-	 *   If positive, the entire execution chain must complete within this duration
-	 *   or a `TimeoutError` will be thrown.
+	 * @param args - The arguments to pass to each middleware function.
+	 *   **Note:** For backwards compatibility, a non-array value is auto-wrapped
+	 *   into a single-element array. Prefer always passing a tuple.
+	 * @param timeoutOrOptions - Either a number (total timeout in ms, legacy form)
+	 *   or a {@linkcode MidwareExecuteOptions} object for timeout and/or AbortSignal.
 	 * @returns A promise that resolves to the return value of the terminating middleware,
 	 *   or `undefined` if all middlewares completed without returning a value.
 	 * @throws {TimeoutError} If the total execution time exceeds the specified timeout
+	 * @throws The AbortSignal's `reason` if the signal is aborted
 	 *
 	 * @example
 	 * ```ts
 	 * // Basic execution
 	 * const result = await midware.execute([request, response]);
 	 *
-	 * // With total timeout
+	 * // With total timeout (legacy form)
 	 * const result = await midware.execute([ctx], 5000);
 	 *
-	 * // Early termination
-	 * midware.use((ctx) => {
-	 *   if (!ctx.authorized) {
-	 *     return { error: "Forbidden" }; // stops execution, returns this value
-	 *   }
-	 * });
-	 * const result = await midware.execute([ctx]); // { error: "Forbidden" }
+	 * // With options object (timeout + AbortSignal)
+	 * const ac = new AbortController();
+	 * await midware.execute([ctx], { timeout: 5000, signal: ac.signal });
 	 * ```
 	 */
-	async execute(args: T, timeout: number = 0): Promise<unknown> {
+	async execute(
+		args: T,
+		timeoutOrOptions: number | MidwareExecuteOptions = 0,
+	): Promise<R | undefined> {
+		const options: MidwareExecuteOptions =
+			typeof timeoutOrOptions === "number"
+				? { timeout: timeoutOrOptions }
+				: (timeoutOrOptions ?? {});
+		const { timeout = 0, signal } = options;
+
+		// Legacy BC: auto-wrap non-array args. Prefer passing a tuple.
 		if (!Array.isArray(args)) {
 			args = [args] as any;
 		}
 
-		// Get the executable middlewares (sorted if needed, cached if possible)
+		// short-circuit if already aborted
+		if (signal?.aborted) throw signal.reason;
+
 		const midwaresToExecute = this.#getExecutableMiddlewares();
 
-		// process all in series (for the potential timeout race, need to wrap as a single promise)
-		let _exec = async () => {
-			let result;
+		let _exec = async (): Promise<R | undefined> => {
+			let result: unknown;
 			for (const midware of midwaresToExecute) {
+				if (signal?.aborted) throw signal.reason;
 				result = await midware(...args);
-				// anything other than `undefined` is considered as a termination signal
-				if (result !== undefined) {
-					return result;
-				}
+				// anything other than `undefined` is considered a termination signal
+				if (result !== undefined) return result as R;
 			}
-			return result;
+			return result as R | undefined;
 		};
 
-		// maybe total execution timeout check...
+		// optional total-execution timeout
 		if (timeout > 0) {
 			_exec = withTimeout(_exec, timeout, "Execution timed out");
 		}
 
-		// finally, do the work...
 		return await _exec();
 	}
 }

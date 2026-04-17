@@ -34,7 +34,9 @@
  * }
  * ```
  */
-export class TimeoutError extends Error {}
+export class TimeoutError extends Error {
+	override name = "TimeoutError";
+}
 
 /**
  * Creates a new function which returns the promise-wrapped `fn`, which will
@@ -42,12 +44,22 @@ export class TimeoutError extends Error {}
  *
  * Useful for wrapping async operations that might hang indefinitely.
  *
- * @template T - The return type of the wrapped function
+ * Important:
+ * - A non-positive `timeout` (<= 0) is treated as "no timeout": `fn` is still
+ *   promise-wrapped for signature consistency, but no timer is scheduled.
+ * - A synchronous throw inside `fn` is converted into a rejected Promise.
+ * - The underlying operation is **not** cancelled when the timeout fires
+ *   (JavaScript has no generic way to cancel arbitrary work). Prefer passing
+ *   an {@linkcode AbortSignal} from the outside if you need true cancellation.
+ *
+ * @template TArgs - The argument tuple of the wrapped function
+ * @template TReturn - The resolved value type of the wrapped function
  * @param fn - The function to wrap with timeout protection
- * @param timeout - Maximum execution time in milliseconds (default: 1000)
+ * @param timeout - Maximum execution time in milliseconds (default: 1000).
+ *   Values `<= 0` mean "no timeout".
  * @param errMessage - Custom error message for timeout (default: "Timed out after {timeout} ms")
- * @returns A new function that returns a Promise which rejects with TimeoutError if timeout is exceeded
- * @throws {TimeoutError} When the function execution exceeds the specified timeout
+ * @returns A new function returning a Promise that rejects with {@linkcode TimeoutError}
+ *   if the timeout is exceeded.
  *
  * @example
  * ```ts
@@ -66,26 +78,34 @@ export class TimeoutError extends Error {}
  * await fastOperation(); // throws TimeoutError
  * ```
  */
-export function withTimeout<T>(
-	fn: CallableFunction,
+export function withTimeout<
+	TReturn = unknown,
+	TArgs extends readonly unknown[] = any[],
+>(
+	fn: (...args: TArgs) => TReturn | Promise<TReturn>,
 	timeout: number = 1_000,
 	errMessage?: string,
-): (...args: any[]) => Promise<T> {
-	return (...args: any[]) => {
-		const _promise = fn(...args);
+): (...args: TArgs) => Promise<TReturn> {
+	// non-positive timeout is a no-op — just promise-wrap for signature consistency
+	// (async so sync throws become rejections)
+	if (!(timeout > 0)) {
+		return async (...args: TArgs): Promise<TReturn> => await fn(...args);
+	}
 
-		let _timeoutId: number;
-		const _clock = new Promise((_, reject) => {
-			_timeoutId = setTimeout(() => {
+	return async (...args: TArgs): Promise<TReturn> => {
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+		const clock = new Promise<never>((_, reject) => {
+			timeoutId = setTimeout(() => {
 				reject(new TimeoutError(errMessage || `Timed out after ${timeout} ms`));
 			}, timeout);
 		});
 
-		return new Promise<T>((res, rej) => {
-			return Promise.race([_promise, _clock])
-				.then(res)
-				.catch(rej)
-				.finally(() => clearTimeout(_timeoutId));
-		});
+		try {
+			// wrapping `fn(...)` in Promise.resolve ensures a synchronous throw
+			// becomes a rejection (Promise.race needs promises)
+			return await Promise.race([Promise.resolve(fn(...args)), clock]);
+		} finally {
+			clearTimeout(timeoutId);
+		}
 	};
 }
