@@ -1,9 +1,10 @@
-import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { Midware, type MidwareUseFn } from "../src/midware.ts";
 import { sleep } from "../src/utils/sleep.ts";
 import { TimeoutError, withTimeout } from "../src/utils/with-timeout.ts";
 
-Deno.test("framework flow works", async () => {
+test("framework flow works", async () => {
 	type Context = { foo: string; x: number[]; counter: number; baz?: string };
 	const app = new Midware<[Context]>([
 		(ctx) => {
@@ -29,29 +30,29 @@ Deno.test("framework flow works", async () => {
 	const context: Context = { foo: "bar", x: [], counter: 0 };
 	await app.execute([context]);
 	// console.log(context);
-	assertEquals({ foo: "bar", x: [1, 2], baz: "bat", counter: 2 }, context);
+	assert.deepStrictEqual({ foo: "bar", x: [1, 2], baz: "bat", counter: 2 }, context);
 });
 
-Deno.test("middleware can throw", async () => {
+test("middleware can throw", async () => {
 	class BoomError extends Error {}
 	const app = new Midware([
 		() => {
 			throw new BoomError();
 		},
 	]);
-	await assertRejects(() => app.execute([]), BoomError);
+	await assert.rejects(() => app.execute([]), BoomError);
 });
 
-Deno.test("middleware execution rejects on timeout excess", async () => {
+test("middleware execution rejects on timeout excess", async () => {
 	const _sleepTimer = { id: -1 };
 	const app = new Midware();
 	app.use(() => sleep(40, _sleepTimer), 20);
 	app.use(() => {});
-	await assertRejects(() => app.execute([]), TimeoutError);
+	await assert.rejects(() => app.execute([]), TimeoutError);
 	clearTimeout(_sleepTimer.id);
 });
 
-Deno.test(
+test(
 	"middleware execution does not reject if within timeout",
 	async () => {
 		const _sleepTimer = { id: -1 };
@@ -63,16 +64,16 @@ Deno.test(
 	}
 );
 
-Deno.test("execute all rejects on timeout excess", async () => {
+test("execute all rejects on timeout excess", async () => {
 	const _sleepTimer = { id: -1 };
 	const app = new Midware<any>();
 	app.use(() => sleep(40, _sleepTimer));
 	app.use(() => {});
-	await assertRejects(() => app.execute({}, 20), TimeoutError);
+	await assert.rejects(() => app.execute({}, 20), TimeoutError);
 	clearTimeout(_sleepTimer.id);
 });
 
-Deno.test("duplicates check", () => {
+test("duplicates check", () => {
 	const fn1 = () => null;
 	const fn2 = () => null;
 
@@ -83,9 +84,9 @@ Deno.test("duplicates check", () => {
 
 	// now check
 	app = new Midware<any>([fn1, fn2], { duplicatesCheckEnabled: true });
-	assertThrows(() => app.use(fn1));
-	assertThrows(() => app.use(fn2));
-	assertThrows(() => app.unshift(fn2));
+	assert.throws(() => app.use(fn1));
+	assert.throws(() => app.use(fn2));
+	assert.throws(() => app.unshift(fn2));
 
 	// now check again, but `withTimeout` makes it not detectable
 	() => app.use(fn1, 1);
@@ -93,12 +94,12 @@ Deno.test("duplicates check", () => {
 	() => app.unshift(fn2, 1);
 
 	// check at constructor
-	assertThrows(
+	assert.throws(
 		() => new Midware<any>([fn1, fn1], { duplicatesCheckEnabled: true })
 	);
 });
 
-Deno.test("pre execute sort order", async () => {
+test("pre execute sort order", async () => {
 	type Context = { log: number[] };
 
 	const fn1: MidwareUseFn<[Context]> = (ctx) => {
@@ -117,7 +118,7 @@ Deno.test("pre execute sort order", async () => {
 	let context = { log: [] };
 	let app = new Midware<[Context]>([fn1, fn2, fn3, fn4]);
 	await app.execute([context]);
-	assertEquals(context.log, [1, 2, 3, 4]);
+	assert.deepStrictEqual(context.log, [1, 2, 3, 4]);
 
 	// now repeat, but modify sort order marks
 	fn3.__midwarePreExecuteSortOrder = 1;
@@ -128,10 +129,10 @@ Deno.test("pre execute sort order", async () => {
 	});
 	await app.execute([context]);
 
-	assertEquals(context.log, [4, 3, 1, 2]);
+	assert.deepStrictEqual(context.log, [4, 3, 1, 2]);
 });
 
-Deno.test("remove middleware", async () => {
+test("remove middleware", async () => {
 	type Context = { log: number[] };
 	const fn1: MidwareUseFn<[Context]> = (ctx) => {
 		ctx.log.push(1);
@@ -147,18 +148,18 @@ Deno.test("remove middleware", async () => {
 
 	// Remove middleware from the middle
 	const removed = app.remove(fn2);
-	assertEquals(removed, true);
+	assert.deepStrictEqual(removed, true);
 
 	const context = { log: [] };
 	await app.execute([context]);
-	assertEquals(context.log, [1, 3]);
+	assert.deepStrictEqual(context.log, [1, 3]);
 
 	// Try to remove non-existent middleware
 	const notRemoved = app.remove(fn2);
-	assertEquals(notRemoved, false);
+	assert.deepStrictEqual(notRemoved, false);
 });
 
-Deno.test("clear all middlewares", async () => {
+test("clear all middlewares", async () => {
 	type Context = { log: number[] };
 	const fn1: MidwareUseFn<[Context]> = (ctx) => {
 		ctx.log.push(1);
@@ -174,10 +175,10 @@ Deno.test("clear all middlewares", async () => {
 
 	const context = { log: [] };
 	await app.execute([context]);
-	assertEquals(context.log, []);
+	assert.deepStrictEqual(context.log, []);
 });
 
-Deno.test("remove invalidates sort cache", async () => {
+test("remove invalidates sort cache", async () => {
 	type Context = { log: number[] };
 
 	const fn1: MidwareUseFn<[Context]> = (ctx) => {
@@ -200,17 +201,17 @@ Deno.test("remove invalidates sort cache", async () => {
 
 	let context = { log: [] };
 	await app.execute([context]);
-	assertEquals(context.log, [3, 2, 1]);
+	assert.deepStrictEqual(context.log, [3, 2, 1]);
 
 	// Remove fn2 and verify cache is invalidated
 	app.remove(fn2);
 
 	context = { log: [] };
 	await app.execute([context]);
-	assertEquals(context.log, [3, 1]);
+	assert.deepStrictEqual(context.log, [3, 1]);
 });
 
-Deno.test("clear invalidates sort cache", async () => {
+test("clear invalidates sort cache", async () => {
 	type Context = { log: number[] };
 
 	const fn1: MidwareUseFn<[Context]> = (ctx) => {
@@ -229,7 +230,7 @@ Deno.test("clear invalidates sort cache", async () => {
 
 	let context = { log: [] };
 	await app.execute([context]);
-	assertEquals(context.log, [2, 1]);
+	assert.deepStrictEqual(context.log, [2, 1]);
 
 	// Clear and add new middlewares
 	app.clear();
@@ -243,12 +244,12 @@ Deno.test("clear invalidates sort cache", async () => {
 
 	context = { log: [] };
 	await app.execute([context]);
-	assertEquals(context.log, [3]);
+	assert.deepStrictEqual(context.log, [3]);
 });
 
 // ---------- Bug fixes (v1.4) ----------
 
-Deno.test("B1: mutating sort order between executes is respected", async () => {
+test("B1: mutating sort order between executes is respected", async () => {
 	type Context = { log: number[] };
 	const fn1: MidwareUseFn<[Context]> = (ctx) => void ctx.log.push(1);
 	const fn2: MidwareUseFn<[Context]> = (ctx) => void ctx.log.push(2);
@@ -262,7 +263,7 @@ Deno.test("B1: mutating sort order between executes is respected", async () => {
 
 	let context = { log: [] as number[] };
 	await app.execute([context]);
-	assertEquals(context.log, [1, 2]);
+	assert.deepStrictEqual(context.log, [1, 2]);
 
 	// Flip priorities AFTER first execute — the old cache-invalidation
 	// logic missed this case.
@@ -271,63 +272,63 @@ Deno.test("B1: mutating sort order between executes is respected", async () => {
 
 	context = { log: [] };
 	await app.execute([context]);
-	assertEquals(context.log, [2, 1]);
+	assert.deepStrictEqual(context.log, [2, 1]);
 });
 
-Deno.test("B2: withTimeout with timeout <= 0 is a no-op", async () => {
+test("B2: withTimeout with timeout <= 0 is a no-op", async () => {
 	const fn = () => "ok";
 
 	// 0 must NOT reject (previously fired on next tick)
-	assertEquals(await withTimeout(fn, 0)(), "ok");
-	assertEquals(await withTimeout(fn, -1)(), "ok");
+	assert.deepStrictEqual(await withTimeout(fn, 0)(), "ok");
+	assert.deepStrictEqual(await withTimeout(fn, -1)(), "ok");
 
 	// sleep longer than "the old default" — still no timeout with 0
 	const slow = async () => {
 		await sleep(30);
 		return "slow-ok";
 	};
-	assertEquals(await withTimeout(slow, 0)(), "slow-ok");
+	assert.deepStrictEqual(await withTimeout(slow, 0)(), "slow-ok");
 });
 
-Deno.test("B3: TimeoutError has proper name", () => {
+test("B3: TimeoutError has proper name", () => {
 	const err = new TimeoutError("boom");
-	assertEquals(err.name, "TimeoutError");
-	assertEquals(err instanceof Error, true);
-	assertEquals(err instanceof TimeoutError, true);
+	assert.deepStrictEqual(err.name, "TimeoutError");
+	assert.deepStrictEqual(err instanceof Error, true);
+	assert.deepStrictEqual(err instanceof TimeoutError, true);
 });
 
-Deno.test("B3b: withTimeout synchronous throw converts to rejection", async () => {
+test("B3b: withTimeout synchronous throw converts to rejection", async () => {
 	class BoomError extends Error {}
 	const boom = () => {
 		throw new BoomError();
 	};
-	await assertRejects(() => withTimeout(boom, 100)(), BoomError);
+	await assert.rejects(() => withTimeout(boom, 100)(), BoomError);
 });
 
-Deno.test("D1: remove works for middlewares registered with a timeout", () => {
+test("D1: remove works for middlewares registered with a timeout", () => {
 	const app = new Midware<[{ x: number }]>();
 	const fn: MidwareUseFn<[{ x: number }]> = (ctx) => {
 		ctx.x++;
 	};
 
 	app.use(fn, 100);
-	assertEquals(app.size, 1);
-	assertEquals(app.remove(fn), true);
-	assertEquals(app.size, 0);
-	assertEquals(app.remove(fn), false);
+	assert.deepStrictEqual(app.size, 1);
+	assert.deepStrictEqual(app.remove(fn), true);
+	assert.deepStrictEqual(app.size, 0);
+	assert.deepStrictEqual(app.remove(fn), false);
 });
 
-Deno.test("D1: duplicate detection works with timeout-wrapped middlewares", () => {
+test("D1: duplicate detection works with timeout-wrapped middlewares", () => {
 	const fn = () => {};
 	const app = new Midware<[]>([], { duplicatesCheckEnabled: true });
 
 	app.use(fn, 100);
-	assertThrows(() => app.use(fn, 100)); // same fn, different timeout
-	assertThrows(() => app.use(fn)); // same fn, no timeout
-	assertThrows(() => app.unshift(fn, 50));
+	assert.throws(() => app.use(fn, 100)); // same fn, different timeout
+	assert.throws(() => app.use(fn)); // same fn, no timeout
+	assert.throws(() => app.unshift(fn, 50));
 });
 
-Deno.test("D1: priority sorting works with timeout-wrapped middlewares", async () => {
+test("D1: priority sorting works with timeout-wrapped middlewares", async () => {
 	type Ctx = { log: number[] };
 	const a: MidwareUseFn<[Ctx]> = (c) => void c.log.push(1);
 	const b: MidwareUseFn<[Ctx]> = (c) => void c.log.push(2);
@@ -344,36 +345,36 @@ Deno.test("D1: priority sorting works with timeout-wrapped middlewares", async (
 
 	const ctx = { log: [] as number[] };
 	await app.execute([ctx]);
-	assertEquals(ctx.log, [2, 3, 1]);
+	assert.deepStrictEqual(ctx.log, [2, 3, 1]);
 });
 
-Deno.test("D6: size and middlewares getters", () => {
+test("D6: size and middlewares getters", () => {
 	const fn1 = () => {};
 	const fn2 = () => {};
 
 	const app = new Midware<[]>([fn1]);
-	assertEquals(app.size, 1);
-	assertEquals(app.middlewares.length, 1);
-	assertStrictEquals(app.middlewares[0], fn1);
+	assert.deepStrictEqual(app.size, 1);
+	assert.deepStrictEqual(app.middlewares.length, 1);
+	assert.strictEqual(app.middlewares[0], fn1);
 
 	app.use(fn2, 100); // timeout-wrapped
-	assertEquals(app.size, 2);
+	assert.deepStrictEqual(app.size, 2);
 	// middlewares getter returns the unwrapped originals
-	assertStrictEquals(app.middlewares[1], fn2);
+	assert.strictEqual(app.middlewares[1], fn2);
 
 	// mutating the returned array must not affect internal state
 	(app.middlewares as MidwareUseFn<[]>[]).push(() => {});
-	assertEquals(app.size, 2);
+	assert.deepStrictEqual(app.size, 2);
 });
 
-Deno.test("D2: execute() return type respects R generic", async () => {
+test("D2: execute() return type respects R generic", async () => {
 	const app = new Midware<[{ ok: boolean }], string>();
 	app.use((ctx) => (ctx.ok ? "hit" : undefined));
 	const result: string | undefined = await app.execute([{ ok: true }]);
-	assertEquals(result, "hit");
+	assert.deepStrictEqual(result, "hit");
 });
 
-Deno.test("S1: execute respects AbortSignal (already aborted)", async () => {
+test("S1: execute respects AbortSignal (already aborted)", async () => {
 	const app = new Midware<[]>();
 	let ran = false;
 	app.use(() => {
@@ -382,15 +383,14 @@ Deno.test("S1: execute respects AbortSignal (already aborted)", async () => {
 
 	const ac = new AbortController();
 	ac.abort(new Error("nope"));
-	await assertRejects(
+	await assert.rejects(
 		() => app.execute([], { signal: ac.signal }),
-		Error,
-		"nope",
+		(e: unknown) => e instanceof Error && e.message.includes("nope"),
 	);
-	assertEquals(ran, false);
+	assert.deepStrictEqual(ran, false);
 });
 
-Deno.test("S1: execute respects AbortSignal mid-chain", async () => {
+test("S1: execute respects AbortSignal mid-chain", async () => {
 	const app = new Midware<[{ log: string[] }]>();
 	const ac = new AbortController();
 
@@ -406,44 +406,49 @@ Deno.test("S1: execute respects AbortSignal mid-chain", async () => {
 	});
 
 	const ctx = { log: [] as string[] };
-	await assertRejects(
+	await assert.rejects(
 		() => app.execute([ctx], { signal: ac.signal }),
-		Error,
-		"stop",
+		(e: unknown) => e instanceof Error && e.message.includes("stop"),
 	);
-	assertEquals(ctx.log, ["a", "b"]);
+	assert.deepStrictEqual(ctx.log, ["a", "b"]);
 });
 
-Deno.test("S1: execute options can combine timeout + signal", async () => {
+test("S1: execute options can combine timeout + signal", async () => {
 	const _timer = { id: -1 };
 	const app = new Midware<[]>();
 	app.use(() => sleep(50, _timer));
 	const ac = new AbortController();
 
-	await assertRejects(
+	await assert.rejects(
 		() => app.execute([], { timeout: 20, signal: ac.signal }),
 		TimeoutError,
 	);
 	clearTimeout(_timer.id);
 });
 
-Deno.test("S1: sleep respects AbortSignal", async () => {
+test("S1: sleep respects AbortSignal", async () => {
 	const ac = new AbortController();
 	const promise = sleep(1000, ac.signal);
 	ac.abort(new Error("cancelled"));
-	await assertRejects(() => promise, Error, "cancelled");
+	await assert.rejects(
+		() => promise,
+		(e: unknown) => e instanceof Error && e.message.includes("cancelled"),
+	);
 });
 
-Deno.test("S1: sleep pre-aborted signal rejects immediately", async () => {
+test("S1: sleep pre-aborted signal rejects immediately", async () => {
 	const ac = new AbortController();
 	ac.abort(new Error("pre"));
-	await assertRejects(() => sleep(100, ac.signal), Error, "pre");
+	await assert.rejects(
+		() => sleep(100, ac.signal),
+		(e: unknown) => e instanceof Error && e.message.includes("pre"),
+	);
 });
 
-Deno.test("BC: execute still accepts number as second arg", async () => {
+test("BC: execute still accepts number as second arg", async () => {
 	const _timer = { id: -1 };
 	const app = new Midware<[]>();
 	app.use(() => sleep(40, _timer));
-	await assertRejects(() => app.execute([], 20), TimeoutError);
+	await assert.rejects(() => app.execute([], 20), TimeoutError);
 	clearTimeout(_timer.id);
 });
