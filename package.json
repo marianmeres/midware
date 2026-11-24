@@ -1,0 +1,67 @@
+{
+  "name": "@marianmeres/midware",
+  "version": "1.5.0",
+  "description": "Serial middleware execution framework with type-safe generics, per-middleware and total execution timeouts, priority-based sorting, duplicate detection, AbortSignal cancellation and early termination via return values.",
+  "license": "MIT",
+  "author": "Marian Meres",
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/mod.js",
+  "types": "dist/mod.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/mod.d.ts",
+      "import": "./dist/mod.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "API.md",
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marianmeres/midware.git"
+  },
+  "bugs": {
+    "url": "https://github.com/marianmeres/midware/issues"
+  },
+  "homepage": "https://github.com/marianmeres/midware#readme",
+  "keywords": [
+    "middleware",
+    "pipeline",
+    "serial",
+    "timeout",
+    "abort-signal",
+    "typescript"
+  ],
+  "scripts": {
+    "build": "pnpm run clean && tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "test:watch": "node --test --watch \"tests/**/*.test.ts\"",
+    "test:deno": "deno test --no-lock --config jsr.json tests/",
+    "jsr:check": "deno publish --dry-run --allow-dirty --set-version \"$npm_package_version\"",
+    "ci": "pnpm run typecheck && pnpm run lint && pnpm test",
+    "prepublishOnly": "pnpm run ci && pnpm run build",
+    "release": "npx --yes @marianmeres/release@^2.3.0 --before-bump \"pnpm run ci\"",
+    "publish:jsr": "pnpm run test:deno && deno publish --set-version \"$npm_package_version\"",
+    "publish:all": "pnpm publish && pnpm run publish:jsr",
+    "rp": "npm whoami >/dev/null && pnpm run release -y --before-push \"pnpm run publish:all\"",
+    "rpm": "npm whoami >/dev/null && pnpm run release minor -y --before-push \"pnpm run publish:all\""
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

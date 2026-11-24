@@ -4,13 +4,14 @@
 
 ```yaml
 name: "@marianmeres/midware"
-version: "1.4.0"
+version: "see package.json (the manifest of record)"
 type: "middleware-framework"
-language: "TypeScript"
-runtime: ["Deno", "Node.js"]
+language: "TypeScript (erasable-only)"
+runtime: "Node LTS (.node-version) is the dev runtime and the gate; the source uses web standards only, so it runs anywhere"
+tooling: ["pnpm", "node:test", "tsc", "Biome"]
 registry:
-  jsr: "jsr:@marianmeres/midware"
-  npm: "@marianmeres/midware"
+  npm: "@marianmeres/midware"      # dist/ built by tsc from package.json
+  jsr: "jsr:@marianmeres/midware"  # .ts source via jsr.json (no version; set at publish)
 license: "MIT"
 ```
 
@@ -31,7 +32,12 @@ src/mod.ts              → Entry point, re-exports all public API
 src/midware.ts          → Midware class, MidwareUseFn, MidwareOptions, MidwareExecuteOptions
 src/utils/with-timeout.ts → withTimeout function, TimeoutError class
 src/utils/sleep.ts      → sleep function, SleepTimeoutRef type
-tests/midware.test.ts   → Test suite (26 tests)
+tests/midware.test.ts   → Test suite (26 tests, node:test + node:assert/strict)
+package.json            → manifest of record: version, npm exports, scripts
+jsr.json                → JSR manifest: exports, publish.include (no version)
+tsconfig.json           → type gate (src + tests, noEmit)
+tsconfig.build.json     → src → dist (ESM + .d.ts) for npm
+biome.json              → format + lint (warn-list: useIterableCallbackReturn)
 ```
 
 ## Public API Summary
@@ -137,22 +143,31 @@ function sleep(
 
 7. **Synchronous throws in `withTimeout`-wrapped `fn` become rejections**: Previously they escaped as sync throws.
 
+8. **`SleepTimeoutRef.id` holds whatever `setTimeout` returns**: a number in browsers and Deno, a `Timeout` object on Node (the `number` type is a cast). `clearTimeout(ref.id)` works on all of them.
+
 ## Commands
 
 ```sh
-deno test             # Run tests once (26 tests)
-deno task test:watch  # Run tests in watch mode
-deno check src/mod.ts # Type-check
-deno task npm:build   # Build for npm
-deno task npm:publish # Build and publish to npm
+pnpm install          # Dev tooling
+pnpm test             # node --test (26 tests)
+pnpm run test:watch   # Watch mode
+pnpm run test:deno    # Same suite on Deno, as JSR consumers resolve it
+pnpm run typecheck    # tsc --noEmit — the only type gate (Node strips types)
+pnpm run lint         # biome check . (read-only)
+pnpm run format       # biome check --write .
+pnpm run ci           # typecheck + lint + test (what CI runs)
+pnpm run build        # tsc -p tsconfig.build.json → dist/
+pnpm run jsr:check    # deno publish --dry-run with the package.json version
+pnpm run rp / rpm     # patch / minor release, npm + JSR before push (human action)
 ```
 
 ## Code Style
 
-- Indentation: Tabs
-- Line width: 90
+- Formatting: Biome (`biome.json`) — tabs, 4 wide, 90 columns, double quotes; manifests at 2 spaces
+- Runtime policy: Node at the keyboard, npm as the registry. No `Deno.*` / `Bun.*`, no `jsr:` / `npm:` specifiers in source
+- Erasable-only TS: no `enum` / `namespace` / parameter properties; `import type` for types; explicit `.ts` import extensions
 - Private fields: `#` prefix
-- Lint: `no-explicit-any` disabled
+- Lint: `noExplicitAny` and `noNonNullAssertion` warn (Biome recommended); `useIterableCallbackReturn` warn-listed (constructor's `forEach`)
 
 ## Common Patterns
 
