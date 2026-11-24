@@ -18,6 +18,7 @@ license: "MIT"
 ## Purpose
 
 Serial middleware execution framework. Executes functions sequentially with:
+
 - Type-safe generic arguments AND return type
 - Per-middleware and total execution timeouts
 - Priority-based sorting (re-evaluated on every execute)
@@ -120,12 +121,12 @@ function sleep(
 
 ## Error Conditions
 
-| Error | Trigger |
-|-------|---------|
-| `TypeError` | Non-function passed to `use()`/`unshift()` |
-| `Error` | Duplicate middleware when `duplicatesCheckEnabled=true` |
-| `TimeoutError` | Middleware or total execution exceeds timeout |
-| `signal.reason` | AbortSignal fired before/between middlewares |
+| Error           | Trigger                                                 |
+| --------------- | ------------------------------------------------------- |
+| `TypeError`     | Non-function passed to `use()`/`unshift()`              |
+| `Error`         | Duplicate middleware when `duplicatesCheckEnabled=true` |
+| `TimeoutError`  | Middleware or total execution exceeds timeout           |
+| `signal.reason` | AbortSignal fired before/between middlewares            |
 
 ## Important Implementation Notes
 
@@ -137,7 +138,7 @@ function sleep(
 
 4. **Options are mutable**: `options` property is public and can be modified after construction. Since sorting is no longer cached, toggling `preExecuteSortEnabled` at runtime is safe.
 
-5. **AbortSignal is cooperative, not coercive**: The signal check happens *between* middlewares, not during. An in-flight middleware continues until it yields. Middlewares that want true cancellation must accept the signal through the shared context (via `args`) and check it themselves.
+5. **AbortSignal is cooperative, not coercive**: The signal check happens _between_ middlewares, not during. An in-flight middleware continues until it yields. Middlewares that want true cancellation must accept the signal through the shared context (via `args`) and check it themselves.
 
 6. **`withTimeout(fn, 0)` is a no-op**: A non-positive timeout returns an async-wrapped pass-through. Previously fired on next tick (bug).
 
@@ -235,6 +236,7 @@ None (zero external dependencies).
 ## Test Coverage
 
 26 tests covering:
+
 - Basic flow and early termination
 - Error propagation (sync + async)
 - Per-middleware timeout

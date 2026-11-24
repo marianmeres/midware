@@ -39,15 +39,15 @@ new Midware<T extends unknown[], R = unknown>(
 
 Creates a new Midware instance.
 
-| Type param | Description |
-|------------|-------------|
-| `T` | Tuple type of arguments passed to every middleware |
-| `R` | Return type of a terminating middleware (defaults to `unknown`) |
+| Type param | Description                                                     |
+| ---------- | --------------------------------------------------------------- |
+| `T`        | Tuple type of arguments passed to every middleware              |
+| `R`        | Return type of a terminating middleware (defaults to `unknown`) |
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `midwares` | `MidwareUseFn<T>[]` | `[]` | Initial array of middleware functions to register |
-| `options` | `MidwareOptions` | `{}` | Configuration options |
+| Parameter  | Type                | Default | Description                                       |
+| ---------- | ------------------- | ------- | ------------------------------------------------- |
+| `midwares` | `MidwareUseFn<T>[]` | `[]`    | Initial array of middleware functions to register |
+| `options`  | `MidwareOptions`    | `{}`    | Configuration options                             |
 
 **Example:**
 
@@ -75,12 +75,12 @@ options: MidwareOptions
 
 The current configuration options. Can be modified after construction.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `preExecuteSortEnabled` | `boolean` | `false` | Sort middlewares by `__midwarePreExecuteSortOrder` before execution |
-| `duplicatesCheckEnabled` | `boolean` | `false` | Throw error if the same middleware is added twice |
+| Property                 | Type      | Default | Description                                                         |
+| ------------------------ | --------- | ------- | ------------------------------------------------------------------- |
+| `preExecuteSortEnabled`  | `boolean` | `false` | Sort middlewares by `__midwarePreExecuteSortOrder` before execution |
+| `duplicatesCheckEnabled` | `boolean` | `false` | Throw error if the same middleware is added twice                   |
 
-#### `size` *(getter)*
+#### `size` _(getter)_
 
 ```ts
 get size: number
@@ -88,7 +88,7 @@ get size: number
 
 The number of middlewares currently registered.
 
-#### `middlewares` *(getter)*
+#### `middlewares` _(getter)_
 
 ```ts
 get middlewares: readonly MidwareUseFn<T>[]
@@ -108,12 +108,13 @@ use(midware: MidwareUseFn<T>, timeout?: number): void
 
 Registers a middleware function by pushing it to the end of the internal stack.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `midware` | `MidwareUseFn<T>` | - | The middleware function to register |
-| `timeout` | `number` | `0` | Optional timeout in milliseconds. If positive, wraps with timeout protection |
+| Parameter | Type              | Default | Description                                                                  |
+| --------- | ----------------- | ------- | ---------------------------------------------------------------------------- |
+| `midware` | `MidwareUseFn<T>` | -       | The middleware function to register                                          |
+| `timeout` | `number`          | `0`     | Optional timeout in milliseconds. If positive, wraps with timeout protection |
 
 **Throws:**
+
 - `TypeError` - If `midware` is not a function
 - `Error` - If `duplicatesCheckEnabled` is true and this middleware already exists
 
@@ -143,12 +144,13 @@ unshift(midware: MidwareUseFn<T>, timeout?: number): void
 
 Registers a middleware function by inserting it at the beginning of the internal stack.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `midware` | `MidwareUseFn<T>` | - | The middleware function to register |
-| `timeout` | `number` | `0` | Optional timeout in milliseconds |
+| Parameter | Type              | Default | Description                         |
+| --------- | ----------------- | ------- | ----------------------------------- |
+| `midware` | `MidwareUseFn<T>` | -       | The middleware function to register |
+| `timeout` | `number`          | `0`     | Optional timeout in milliseconds    |
 
 **Throws:**
+
 - `TypeError` - If `midware` is not a function
 - `Error` - If `duplicatesCheckEnabled` is true and this middleware already exists
 
@@ -173,8 +175,8 @@ Removes a specific middleware from the stack. Lookup is performed against the
 original (unwrapped) reference, so this works for middlewares registered with
 a per-middleware timeout.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter | Type              | Description                                                |
+| --------- | ----------------- | ---------------------------------------------------------- |
 | `midware` | `MidwareUseFn<T>` | The middleware function to remove (the original reference) |
 
 **Returns:** `true` if the middleware was found and removed, `false` otherwise.
@@ -221,20 +223,23 @@ execute(
 
 Executes all registered middlewares in series.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `args` | `T` | - | The arguments to pass to each middleware function |
-| `timeoutOrOptions` | `number \| MidwareExecuteOptions` | `0` | Either a total-execution timeout in ms (legacy form) or an options object |
+| Parameter          | Type                              | Default | Description                                                               |
+| ------------------ | --------------------------------- | ------- | ------------------------------------------------------------------------- |
+| `args`             | `T`                               | -       | The arguments to pass to each middleware function                         |
+| `timeoutOrOptions` | `number \| MidwareExecuteOptions` | `0`     | Either a total-execution timeout in ms (legacy form) or an options object |
 
 **Returns:** A promise that resolves to:
+
 - The return value of the terminating middleware (if any returned non-undefined), typed as `R`
 - `undefined` if all middlewares completed without returning a value
 
 **Throws:**
+
 - `TimeoutError` - If the total execution time exceeds the specified timeout
 - The `signal.reason` if the provided `AbortSignal` is aborted before or between middlewares
 
 **Execution behavior:**
+
 1. Middlewares execute sequentially (in series, not parallel)
 2. Each middleware receives the same `args` tuple
 3. Returning `undefined` continues to the next middleware
@@ -285,16 +290,17 @@ type MidwareUseFn<T extends unknown[]> = {
 The middleware function type that can be registered with the Midware manager.
 
 **Return behavior:**
+
 - Returning `undefined` allows the execution chain to continue
 - Returning any other value terminates the chain and returns that value
 
 **Optional properties:**
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `__midwarePreExecuteSortOrder` | `number` | Priority for sorting. Lower numbers execute first. Middlewares without this property are sorted to the end (treated as `Infinity`). Only used when `preExecuteSortEnabled` is true. |
-| `__midwareDuplicable` | `boolean` | When `true`, this middleware can be added multiple times without triggering a duplicate error (when `duplicatesCheckEnabled` is true). |
-| `__midwareOriginal` | `MidwareUseFn<T>` | **Internal.** When the library wraps a middleware with per-middleware timeout, it stores the original reference here so `remove()`, duplicate detection, and sort-key lookups continue to work. You generally should not set this manually. |
+| Property                       | Type              | Description                                                                                                                                                                                                                                 |
+| ------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `__midwarePreExecuteSortOrder` | `number`          | Priority for sorting. Lower numbers execute first. Middlewares without this property are sorted to the end (treated as `Infinity`). Only used when `preExecuteSortEnabled` is true.                                                         |
+| `__midwareDuplicable`          | `boolean`         | When `true`, this middleware can be added multiple times without triggering a duplicate error (when `duplicatesCheckEnabled` is true).                                                                                                      |
+| `__midwareOriginal`            | `MidwareUseFn<T>` | **Internal.** When the library wraps a middleware with per-middleware timeout, it stores the original reference here so `remove()`, duplicate detection, and sort-key lookups continue to work. You generally should not set this manually. |
 
 **Example:**
 
@@ -327,9 +333,9 @@ interface MidwareOptions {
 
 Configuration options for the Midware manager.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `preExecuteSortEnabled` | `boolean` | `false` | Sort middlewares by `__midwarePreExecuteSortOrder` on every `execute()` call. Lower numbers execute first. |
+| Property                 | Type      | Default | Description                                                                                                                |
+| ------------------------ | --------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `preExecuteSortEnabled`  | `boolean` | `false` | Sort middlewares by `__midwarePreExecuteSortOrder` on every `execute()` call. Lower numbers execute first.                 |
 | `duplicatesCheckEnabled` | `boolean` | `false` | Throw an error if the same middleware function is added twice. Works correctly for timeout-wrapped middlewares as of v1.4. |
 
 **Example:**
@@ -354,10 +360,10 @@ interface MidwareExecuteOptions {
 
 Options accepted by `Midware.execute()`.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `timeout` | `number` | Total execution timeout in milliseconds. If positive, the entire chain must complete within this duration or a `TimeoutError` is thrown. Non-positive values mean "no timeout". |
-| `signal` | `AbortSignal` | Cooperative cancellation signal. Checked before each middleware; if aborted, execution stops and the promise rejects with the signal's reason. In-flight middlewares are **not** forcefully cancelled. |
+| Property  | Type          | Description                                                                                                                                                                                            |
+| --------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `timeout` | `number`      | Total execution timeout in milliseconds. If positive, the entire chain must complete within this duration or a `TimeoutError` is thrown. Non-positive values mean "no timeout".                        |
+| `signal`  | `AbortSignal` | Cooperative cancellation signal. Checked before each middleware; if aborted, execution stops and the promise rejects with the signal's reason. In-flight middlewares are **not** forcefully cancelled. |
 
 **Example:**
 
@@ -386,15 +392,16 @@ function withTimeout<
 
 Wraps a function with timeout protection. The returned function returns a Promise that rejects with `TimeoutError` if execution exceeds the timeout.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `fn` | `(...args: TArgs) => TReturn \| Promise<TReturn>` | - | The function to wrap |
-| `timeout` | `number` | `1000` | Maximum execution time in milliseconds. **Non-positive values (<= 0) mean "no timeout"** — `fn` is still promise-wrapped for signature consistency, but no timer is scheduled. |
-| `errMessage` | `string` | `"Timed out after {timeout} ms"` | Custom error message |
+| Parameter    | Type                                              | Default                          | Description                                                                                                                                                                    |
+| ------------ | ------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fn`         | `(...args: TArgs) => TReturn \| Promise<TReturn>` | -                                | The function to wrap                                                                                                                                                           |
+| `timeout`    | `number`                                          | `1000`                           | Maximum execution time in milliseconds. **Non-positive values (<= 0) mean "no timeout"** — `fn` is still promise-wrapped for signature consistency, but no timer is scheduled. |
+| `errMessage` | `string`                                          | `"Timed out after {timeout} ms"` | Custom error message                                                                                                                                                           |
 
 **Returns:** A new function that returns a Promise which rejects with `TimeoutError` if timeout is exceeded.
 
 **Notes:**
+
 - A synchronous throw inside `fn` is converted into a rejected Promise (consistent Promise-returning contract).
 - The underlying operation is **not** cancelled when the timeout fires — JavaScript has no generic way to cancel arbitrary work. For true cancellation, use `AbortSignal` through your own `fn`.
 
@@ -427,9 +434,9 @@ function sleep(
 
 Promise-based delay utility for async/await flows.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `timeout` | `number` | - | The delay duration in milliseconds |
+| Parameter     | Type                            | Default      | Description                                                                                                                                                   |
+| ------------- | ------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `timeout`     | `number`                        | -            | The delay duration in milliseconds                                                                                                                            |
 | `refOrSignal` | `{ id: number } \| AbortSignal` | `{ id: -1 }` | Either an `AbortSignal` (preferred) for cancellation, or a legacy `{ id }` ref object that will receive the timer id (so callers can `clearTimeout(ref.id)`). |
 
 **Returns:** A promise that resolves after the specified delay. If an `AbortSignal` is provided and fires, the promise rejects with the signal's reason.

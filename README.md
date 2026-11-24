@@ -61,22 +61,22 @@ The main middleware manager class.
 - `T` — tuple type representing the arguments passed to all middlewares
 - `R` — terminating-middleware return value type (defaults to `unknown`)
 
-| Member | Description |
-|--------|-------------|
-| `use(midware, timeout?)` | Add middleware to the end of the stack |
-| `unshift(midware, timeout?)` | Add middleware to the beginning of the stack |
-| `remove(midware)` | Remove a specific middleware (returns `true` if found). Works with timeout-wrapped middlewares via the original reference. |
-| `clear()` | Remove all middlewares |
-| `execute(args, timeoutOrOptions?)` | Execute all middlewares in series |
-| `size` *(getter)* | Number of registered middlewares |
-| `middlewares` *(getter)* | Read-only snapshot of registered middlewares (originals, unwrapped) |
+| Member                             | Description                                                                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `use(midware, timeout?)`           | Add middleware to the end of the stack                                                                                     |
+| `unshift(midware, timeout?)`       | Add middleware to the beginning of the stack                                                                               |
+| `remove(midware)`                  | Remove a specific middleware (returns `true` if found). Works with timeout-wrapped middlewares via the original reference. |
+| `clear()`                          | Remove all middlewares                                                                                                     |
+| `execute(args, timeoutOrOptions?)` | Execute all middlewares in series                                                                                          |
+| `size` _(getter)_                  | Number of registered middlewares                                                                                           |
+| `middlewares` _(getter)_           | Read-only snapshot of registered middlewares (originals, unwrapped)                                                        |
 
 ### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `preExecuteSortEnabled` | `boolean` | `false` | Sort middlewares by `__midwarePreExecuteSortOrder` before execution (re-evaluated on every `execute()` call) |
-| `duplicatesCheckEnabled` | `boolean` | `false` | Throw error if the same middleware is added twice |
+| Option                   | Type      | Default | Description                                                                                                  |
+| ------------------------ | --------- | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `preExecuteSortEnabled`  | `boolean` | `false` | Sort middlewares by `__midwarePreExecuteSortOrder` before execution (re-evaluated on every `execute()` call) |
+| `duplicatesCheckEnabled` | `boolean` | `false` | Throw error if the same middleware is added twice                                                            |
 
 ### Execute options
 
@@ -295,17 +295,17 @@ Node LTS (`.node-version`), pnpm, Biome, `node:test`. The source is erasable-onl
 TypeScript that Node runs directly; `dist/` is built only for publishing to npm. JSR is
 served the `.ts` source (`jsr.json`).
 
-| Command                             | Does                                                         |
-| ----------------------------------- | ------------------------------------------------------------ |
-| `pnpm install`                      | installs the dev tooling                                     |
-| `pnpm test` / `pnpm run test:watch` | `node --test` over `tests/**/*.test.ts`                      |
-| `pnpm run test:deno`                | the same suite on Deno, resolved as JSR consumers see it     |
-| `pnpm run typecheck`                | `tsc --noEmit` over `src` and `tests`                        |
-| `pnpm run lint` / `pnpm run format` | `biome check .` read-only / with `--write`                   |
-| `pnpm run ci`                       | typecheck + lint + test, what CI runs                        |
-| `pnpm run build`                    | `tsc -p tsconfig.build.json` → `dist/`                       |
-| `pnpm run jsr:check`                | `deno publish --dry-run` with the `package.json` version     |
-| `pnpm run rp` / `pnpm run rpm`      | patch / minor release, published to npm and JSR before push  |
+| Command                             | Does                                                        |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `pnpm install`                      | installs the dev tooling                                    |
+| `pnpm test` / `pnpm run test:watch` | `node --test` over `tests/**/*.test.ts`                     |
+| `pnpm run test:deno`                | the same suite on Deno, resolved as JSR consumers see it    |
+| `pnpm run typecheck`                | `tsc --noEmit` over `src` and `tests`                       |
+| `pnpm run lint` / `pnpm run format` | `biome check .` read-only / with `--write`                  |
+| `pnpm run ci`                       | typecheck + lint + test, what CI runs                       |
+| `pnpm run build`                    | `tsc -p tsconfig.build.json` → `dist/`                      |
+| `pnpm run jsr:check`                | `deno publish --dry-run` with the `package.json` version    |
+| `pnpm run rp` / `pnpm run rpm`      | patch / minor release, published to npm and JSR before push |
 
 ## License
 

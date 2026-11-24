@@ -78,10 +78,7 @@ export class TimeoutError extends Error {
  * await fastOperation(); // throws TimeoutError
  * ```
  */
-export function withTimeout<
-	TReturn = unknown,
-	TArgs extends readonly unknown[] = any[],
->(
+export function withTimeout<TReturn = unknown, TArgs extends readonly unknown[] = any[]>(
 	fn: (...args: TArgs) => TReturn | Promise<TReturn>,
 	timeout: number = 1_000,
 	errMessage?: string,

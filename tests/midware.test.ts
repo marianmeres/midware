@@ -52,17 +52,14 @@ test("middleware execution rejects on timeout excess", async () => {
 	clearTimeout(_sleepTimer.id);
 });
 
-test(
-	"middleware execution does not reject if within timeout",
-	async () => {
-		const _sleepTimer = { id: -1 };
-		const app = new Midware();
-		app.use(() => sleep(20, _sleepTimer), 40);
-		app.use(() => {});
-		await app.execute([]);
-		clearTimeout(_sleepTimer.id);
-	}
-);
+test("middleware execution does not reject if within timeout", async () => {
+	const _sleepTimer = { id: -1 };
+	const app = new Midware();
+	app.use(() => sleep(20, _sleepTimer), 40);
+	app.use(() => {});
+	await app.execute([]);
+	clearTimeout(_sleepTimer.id);
+});
 
 test("execute all rejects on timeout excess", async () => {
 	const _sleepTimer = { id: -1 };
@@ -94,9 +91,7 @@ test("duplicates check", () => {
 	() => app.unshift(fn2, 1);
 
 	// check at constructor
-	assert.throws(
-		() => new Midware<any>([fn1, fn1], { duplicatesCheckEnabled: true })
-	);
+	assert.throws(() => new Midware<any>([fn1, fn1], { duplicatesCheckEnabled: true }));
 });
 
 test("pre execute sort order", async () => {
