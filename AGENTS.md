@@ -10,8 +10,8 @@ language: "TypeScript (erasable-only)"
 runtime: "Node LTS (.node-version) is the dev runtime and the gate; the source uses web standards only, so it runs anywhere"
 tooling: ["pnpm", "node:test", "tsc", "Biome"]
 registry:
-  npm: "@marianmeres/midware"      # dist/ built by tsc from package.json
-  jsr: "jsr:@marianmeres/midware"  # .ts source via jsr.json (no version; set at publish)
+  npm: "@marianmeres/midware"  # dist/ built by tsc from package.json; the only registry
+  # JSR: discontinued after 1.5.0 (Deno users import npm:@marianmeres/midware)
 license: "MIT"
 ```
 
@@ -35,7 +35,6 @@ src/utils/with-timeout.ts → withTimeout function, TimeoutError class
 src/utils/sleep.ts      → sleep function, SleepTimeoutRef type
 tests/midware.test.ts   → Test suite (26 tests, node:test + node:assert/strict)
 package.json            → manifest of record: version, npm exports, scripts
-jsr.json                → JSR manifest: exports, publish.include (no version)
 tsconfig.json           → type gate (src + tests, noEmit)
 tsconfig.build.json     → src → dist (ESM + .d.ts) for npm
 biome.json              → format + lint (warn-list: useIterableCallbackReturn)
@@ -152,14 +151,12 @@ function sleep(
 pnpm install          # Dev tooling
 pnpm test             # node --test (26 tests)
 pnpm run test:watch   # Watch mode
-pnpm run test:deno    # Same suite on Deno, as JSR consumers resolve it
 pnpm run typecheck    # tsc --noEmit — the only type gate (Node strips types)
 pnpm run lint         # biome check . (read-only)
 pnpm run format       # biome check --write .
 pnpm run ci           # typecheck + lint + test (what CI runs)
 pnpm run build        # tsc -p tsconfig.build.json → dist/
-pnpm run jsr:check    # deno publish --dry-run with the package.json version
-pnpm run rp / rpm     # patch / minor release, npm + JSR before push (human action)
+pnpm run rp / rpm     # patch / minor release, published to npm before push (human action)
 ```
 
 ## Code Style
@@ -251,6 +248,14 @@ None (zero external dependencies).
 - `withTimeout` with `timeout <= 0` (no-op)
 - `withTimeout` sync-throw handling
 - `TimeoutError.name`
+
+## Migration to v2
+
+No API or behavior change from 1.5.0; the major marks the end of JSR publishing.
+
+- **npm consumers**: widen the range to `^2.0.0`; nothing else.
+- **Deno consumers** on `jsr:@marianmeres/midware` stay on 1.5.0 (the last JSR version)
+  until they switch to `npm:@marianmeres/midware@^2`.
 
 ## Migration from v1.3.x
 

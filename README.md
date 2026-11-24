@@ -2,7 +2,6 @@
 
 A minimalistic, type-safe middleware framework for executing functions in series.
 
-[![JSR](https://jsr.io/badges/@marianmeres/midware)](https://jsr.io/@marianmeres/midware)
 [![NPM](https://img.shields.io/npm/v/@marianmeres/midware)](https://www.npmjs.com/package/@marianmeres/midware)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -23,10 +22,8 @@ A minimalistic, type-safe middleware framework for executing functions in series
 npm install @marianmeres/midware
 ```
 
-```sh
-# Deno (JSR)
-deno add jsr:@marianmeres/midware
-```
+1.5.0 is the last version on JSR; 2.0.0 and later are on npm only (in Deno:
+`npm:@marianmeres/midware`).
 
 ## Quick Start
 
@@ -243,6 +240,16 @@ app.clear();
 
 ## Changelog
 
+### v2.0.0
+
+No API or behavior change: the npm package is built from the same source as 1.5.0. The
+major marks a change of distribution.
+
+- **No longer published to JSR.** 1.5.0 is the last JSR version. Deno users import
+  `npm:@marianmeres/midware@^2` instead (`deno add npm:@marianmeres/midware`).
+- **npm users: nothing to do** beyond widening the range to `^2.0.0`.
+- Developed and tested on Node (pnpm, `node:test`, Biome) instead of Deno.
+
 ### v1.4.0
 
 Mostly backwards-compatible. See [CHANGELOG highlights](#changelog-highlights) below for any
@@ -292,20 +299,17 @@ None of the changes affect runtime behavior for code that used the package as do
 ## Development
 
 Node LTS (`.node-version`), pnpm, Biome, `node:test`. The source is erasable-only
-TypeScript that Node runs directly; `dist/` is built only for publishing to npm. JSR is
-served the `.ts` source (`jsr.json`).
+TypeScript that Node runs directly; `dist/` is built only for publishing to npm.
 
-| Command                             | Does                                                        |
-| ----------------------------------- | ----------------------------------------------------------- |
-| `pnpm install`                      | installs the dev tooling                                    |
-| `pnpm test` / `pnpm run test:watch` | `node --test` over `tests/**/*.test.ts`                     |
-| `pnpm run test:deno`                | the same suite on Deno, resolved as JSR consumers see it    |
-| `pnpm run typecheck`                | `tsc --noEmit` over `src` and `tests`                       |
-| `pnpm run lint` / `pnpm run format` | `biome check .` read-only / with `--write`                  |
-| `pnpm run ci`                       | typecheck + lint + test, what CI runs                       |
-| `pnpm run build`                    | `tsc -p tsconfig.build.json` → `dist/`                      |
-| `pnpm run jsr:check`                | `deno publish --dry-run` with the `package.json` version    |
-| `pnpm run rp` / `pnpm run rpm`      | patch / minor release, published to npm and JSR before push |
+| Command                             | Does                                                |
+| ----------------------------------- | --------------------------------------------------- |
+| `pnpm install`                      | installs the dev tooling                            |
+| `pnpm test` / `pnpm run test:watch` | `node --test` over `tests/**/*.test.ts`             |
+| `pnpm run typecheck`                | `tsc --noEmit` over `src` and `tests`               |
+| `pnpm run lint` / `pnpm run format` | `biome check .` read-only / with `--write`          |
+| `pnpm run ci`                       | typecheck + lint + test, what CI runs               |
+| `pnpm run build`                    | `tsc -p tsconfig.build.json` → `dist/`              |
+| `pnpm run rp` / `pnpm run rpm`      | patch / minor release, published to npm before push |
 
 ## License
 
