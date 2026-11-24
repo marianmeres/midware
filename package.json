@@ -1,6 +1,6 @@
 {
   "name": "@marianmeres/midware",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "description": "Serial middleware execution framework with type-safe generics, per-middleware and total execution timeouts, priority-based sorting, duplicate detection, AbortSignal cancellation and early termination via return values.",
   "license": "MIT",
   "author": "Marian Meres",
